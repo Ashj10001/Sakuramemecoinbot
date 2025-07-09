@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Configuration
-BOT_TOKEN = os.getenv"7872973965:AAGt3KFPosFSYV1w4Ded-_tD8QtUHasei9s"
+BOT_TOKEN = "7872973965:AAGt3KFPosFSYV1w4Ded-_tD8QtUHasei9s"
 CHANNEL_LINK = "https://t.me/sakuramemecoin"
 GROUP_LINK = "https://t.me/Sakuramemecoincommunity"
 TWITTER_LINK = "https://x.com/Sukuramemecoin"
