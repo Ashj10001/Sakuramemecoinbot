@@ -1,24 +1,26 @@
 import os
 import re
 import logging
-import requests
+import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Updater, CommandHandler, CallbackContext, 
     CallbackQueryHandler, MessageHandler, Filters
 )
 from pymongo import MongoClient
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Configuration - Get from Render environment
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHANNEL_ID = os.getenv("CHANNEL_ID")
+GROUP_ID = os.getenv("GROUP_ID")
+ADMIN_ID = os.getenv("ADMIN_ID")
+MONGO_URI = os.getenv("MONGO_URI")
 
-# Configuration
-BOT_TOKEN = "7872973965:AAGt3KFPosFSYV1w4Ded-_tD8QtUHasei9s"
+# Fixed URLs
 CHANNEL_LINK = "https://t.me/sakuramemecoin"
 GROUP_LINK = "https://t.me/Sakuramemecoincommunity"
 TWITTER_LINK = "https://x.com/Sukuramemecoin"
-PUMP_FUN_LINK = "https://pump.fun/2AXnWVULFu5kJf7Z3LA9WXxF47XLYXoNAyMQZuZjpump
+PUMP_FUN_LINK = "https://pump.fun/2AXnWVULFu5kJf7Z3LA9WXxF47XLYXoNAyMQZuZjpump"
 
 # Configure logging
 logging.basicConfig(
@@ -33,18 +35,11 @@ db = client.sakuramemecoin_bot
 users = db.users
 
 # Verification statuses
-(
-    STATUS_START,
-    STATUS_CHANNEL,
-    STATUS_GROUP,
-    STATUS_TWITTER,
-    STATUS_SOL_ADDRESS
-) = range(5)
+STATUS_START, STATUS_CHANNEL, STATUS_GROUP, STATUS_TWITTER, STATUS_SOL_ADDRESS = range(5)
 
 # SOL address validation regex
 SOL_REGEX = r"^[1-9A-HJ-NP-Za-km-z]{32,44}$"
 
-# Command handlers
 def start(update: Update, context: CallbackContext) -> None:
     user = update.effective_user
     context.user_data['status'] = STATUS_START
@@ -76,8 +71,8 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         check_twitter(update, context)
 
 def verify_channel(update: Update, context: CallbackContext) -> None:
-    context.user_data['status'] = STATUS_CHANNEL
     query = update.callback_query
+    context.user_data['status'] = STATUS_CHANNEL
     
     keyboard = [
         [InlineKeyboardButton("🌸 Join Channel", url=CHANNEL_LINK)],
@@ -92,16 +87,16 @@ def verify_channel(update: Update, context: CallbackContext) -> None:
 def check_channel(update: Update, context: CallbackContext) -> None:
     user_id = update.effective_user.id
     try:
-        # Channel membership check would go here
-        # For now, we'll assume user joined
+        # For now, skip actual check - implement later
         verify_group(update, context)
     except Exception as e:
         logger.error(f"Error checking channel: {e}")
-        update.callback_query.answer("⚠️ Verification error. Please try again later.", show_alert=True)
+        update.callback_query.answer("✅ Proceeding to next step", show_alert=True)
+        verify_group(update, context)
 
 def verify_group(update: Update, context: CallbackContext) -> None:
-    context.user_data['status'] = STATUS_GROUP
     query = update.callback_query
+    context.user_data['status'] = STATUS_GROUP
     
     keyboard = [
         [InlineKeyboardButton("🌸 Join Group", url=GROUP_LINK)],
@@ -115,16 +110,16 @@ def verify_group(update: Update, context: CallbackContext) -> None:
 
 def check_group(update: Update, context: CallbackContext) -> None:
     try:
-        # Group membership check would go here
-        # For now, we'll assume user joined
+        # For now, skip actual check - implement later
         verify_twitter(update, context)
     except Exception as e:
         logger.error(f"Error checking group: {e}")
-        update.callback_query.answer("⚠️ Verification error. Please try again later.", show_alert=True)
+        update.callback_query.answer("✅ Proceeding to next step", show_alert=True)
+        verify_twitter(update, context)
 
 def verify_twitter(update: Update, context: CallbackContext) -> None:
-    context.user_data['status'] = STATUS_TWITTER
     query = update.callback_query
+    context.user_data['status'] = STATUS_TWITTER
     
     keyboard = [
         [InlineKeyboardButton("🌸 Follow Twitter", url=TWITTER_LINK)],
@@ -138,8 +133,8 @@ def verify_twitter(update: Update, context: CallbackContext) -> None:
     )
 
 def check_twitter(update: Update, context: CallbackContext) -> None:
-    context.user_data['status'] = STATUS_SOL_ADDRESS
     query = update.callback_query
+    context.user_data['status'] = STATUS_SOL_ADDRESS
     
     query.edit_message_text(
         text="Step 4/4: Submit your Solana address\n\n"
@@ -179,22 +174,23 @@ def handle_sol_address(update: Update, context: CallbackContext) -> None:
         "username": user.username,
         "first_name": user.first_name,
         "sol_address": sol_address,
-        "completed": True
+        "completed": True,
+        "reward_sent": False  # We'll mark as sent when we actually send SOL
     }
     users.update_one({"user_id": user.id}, {"$set": user_data}, upsert=True)
     
     # Notify admin
-    context.bot.send_message(
-        chat_id=ADMIN_ID,
-        text=f"🚀 New Airdrop Registration:\n\n"
-             f"User: @{user.username} ({user.first_name})\n"
-             f"SOL Address: `{sol_address}`\n"
-             f"Profile: {user.link}",
-        parse_mode="Markdown"
-    )
+    if ADMIN_ID:
+        context.bot.send_message(
+            chat_id=ADMIN_ID,
+            text=f"🚀 New Airdrop Registration:\n\n"
+                 f"User: @{user.username} ({user.first_name})\n"
+                 f"SOL Address: `{sol_address}`\n",
+            parse_mode="Markdown"
+        )
     
     # Success message with token purchase button
-    keyboard = [[InlineKeyboardButton("🚀 Buy on Pump.fun", url=2AXnWVULFu5kJf7Z3LA9WXxF47XLYXoNAyMQZuZjpump)]]
+    keyboard = [[InlineKeyboardButton("🚀 Buy on Pump.fun", url=PUMP_FUN_LINK)]]
     
     update.message.reply_text(
         "🎉 Congratulations! You've completed all steps for Sakuramemecoin Airdrop!\n\n"
@@ -211,18 +207,25 @@ def error_handler(update: Update, context: CallbackContext) -> None:
     logger.error(msg="Exception while handling update:", exc_info=context.error)
 
 def main() -> None:
-    updater = Updater(7872973965:AAGt3KFPosFSYV1w4Ded-_tD8QtUHasei9s)
-    dp = updater.dispatcher
+    # Persistent connection to handle Render restarts
+    logger.info("Starting bot...")
+    while True:
+        try:
+            updater = Updater(BOT_TOKEN, use_context=True)
+            dp = updater.dispatcher
 
-    # Handlers
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CallbackQueryHandler(button_handler))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_sol_address))
-    dp.add_error_handler(error_handler)
+            # Handlers
+            dp.add_handler(CommandHandler("start", start))
+            dp.add_handler(CallbackQueryHandler(button_handler))
+            dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_sol_address))
+            dp.add_error_handler(error_handler)
 
-    updater.start_polling()
-    logger.info("Bot started polling...")
-    updater.idle()
+            updater.start_polling()
+            logger.info("Bot started polling...")
+            updater.idle()
+        except Exception as e:
+            logger.error(f"Main loop crashed: {e}")
+            time.sleep(10)
 
 if __name__ == '__main__':
     main()
