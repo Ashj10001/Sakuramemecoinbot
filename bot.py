@@ -10,11 +10,7 @@ from telegram.ext import (
 from pymongo import MongoClient
 
 # Configuration - Get from Render environment
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHANNEL_ID = os.getenv("CHANNEL_ID")
-GROUP_ID = os.getenv("GROUP_ID")
-ADMIN_ID = os.getenv("ADMIN_ID")
-MONGO_URI = os.getenv("MONGO_URI")
+BOT_TOKEN = ("7872973965:AAGt3KFPosFSYV1w4Ded-_tD8QtUHasei9s")
 
 # Fixed URLs
 CHANNEL_LINK = "https://t.me/sakuramemecoin"
