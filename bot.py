@@ -1,131 +1,119 @@
 import logging
 from telegram import (
     Update,
-    InlineKeyboardMarkup,
     InlineKeyboardButton,
+    InlineKeyboardMarkup,
     ReplyKeyboardRemove
 )
 from telegram.ext import (
     Application,
     CommandHandler,
-    MessageHandler,
     CallbackQueryHandler,
+    MessageHandler,
+    filters,
     ContextTypes,
-    filters
+    ConversationHandler
 )
 
-# Bot configuration
+# Configuration
 BOT_TOKEN = "7872973965:AAGt3KFPosFSYV1w4Ded-_tD8QtUHasei9s"
 CHANNEL_LINK = "https://t.me/sakuramemecoin"
 GROUP_LINK = "https://t.me/Sakuramemecoincommunity"
 TWITTER_LINK = "https://x.com/Sukuramemecoin"
 BUY_LINK = "https://pump.fun/coin/2AXnWVULFu5kJf7Z3LA9WXxF47XLYXoNAyMQZuZjpump"
 
-# Set up logging
+# Conversation states
+GET_WALLET = 0
+
+# Enable logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
+logger = logging.getLogger(__name__)
 
-# Conversation states
-REQUEST_WALLET, CONFIRMATION = range(2)
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send welcome message with task instructions"""
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Send welcome message and instructions with inline buttons"""
     user = update.effective_user
-    welcome_msg = (
-        f"👋 Welcome {user.mention_html()} to Sakura Meme Coin Airdrop Bot!\n\n"
-        "🎌 To qualify for 0.2 SOL airdrop:\n"
-        "1. Join our Official Channel\n"
-        "2. Join our Telegram Group\n"
-        "3. Follow our Twitter\n"
-        "4. Buy $Sakura tokens\n\n"
-        "⬇️ Complete the tasks below then click DONE"
-    )
-    
-    # Create inline keyboard with task buttons
     keyboard = [
         [
-            InlineKeyboardButton("📢 Join Channel", url=CHANNEL_LINK),
-            InlineKeyboardButton("👥 Join Group", url=GROUP_LINK)
+            InlineKeyboardButton("🌟 Join Channel", url=CHANNEL_LINK),
+            InlineKeyboardButton("👥 Join Group", url=GROUP_LINK),
         ],
         [
             InlineKeyboardButton("🐦 Follow Twitter", url=TWITTER_LINK),
-            InlineKeyboardButton("💰 Buy $Sakura", url=BUY_LINK)
+            InlineKeyboardButton("💰 Buy $SAKURA", url=BUY_LINK),
         ],
-        [InlineKeyboardButton("✅ DONE", callback_data="tasks_done")]
+        [InlineKeyboardButton("✅ I Have Completed All Tasks", callback_data="submit_wallet")]
     ]
     
-    await update.message.reply_html(
-        welcome_msg,
+    await update.message.reply_text(
+        f"👋 Welcome {user.mention_markdown_v2()} to the $SAKURA Airdrop Bot\!\n\n"
+        "📋 To qualify for 0\.2 SOL airdrop:\n"
+        "1\. Join our official channel\n"
+        "2\. Join our community group\n"
+        "3\. Follow us on Twitter\n"
+        "4\. Buy $SAKURA token\n\n"
+        "⬇️ Complete all tasks and click the button below:",
         reply_markup=InlineKeyboardMarkup(keyboard),
-        disable_web_page_preview=True
+        parse_mode='MarkdownV2'
     )
+    return GET_WALLET
 
-async def handle_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle task completion callback"""
+async def request_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Request Solana wallet address"""
     query = update.callback_query
     await query.answer()
-    
     await query.edit_message_text(
-        "✍️ Please send your Solana wallet address now:\n\n"
-        "• Copy/paste your SOL address\n"
-        "• Make sure it's correct!\n\n"
-        "⚠️ Type /cancel if you need to restart",
-        disable_web_page_preview=True
+        "📥 Please send your Solana wallet address now:\n\n"
+        "Example: `H1cS...g6FJ`\n"
+        "_Just paste your wallet address in chat_",
+        parse_mode='MarkdownV2'
     )
-    return REQUEST_WALLET
+    return GET_WALLET
 
 async def receive_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Process submitted wallet address"""
-    wallet = update.message.text.strip()
+    """Receive wallet address and send confirmation"""
+    wallet_address = update.message.text
     user = update.effective_user
     
-    # Save wallet to database (optional)
-    # logger.info(f"Wallet from {user.id}: {wallet}")
-    
-    # Send confirmation message
-    await update.message.reply_html(
-        f"🎉 Congratulations {user.mention_html()}!\n\n"
-        "✅ Your entry has been verified!\n\n"
-        "🪙 0.2 SOL is on its way to your wallet:\n"
-        f"<code>{wallet}</code>\n\n"
-        "⏳ Please allow 24-48 hours for the transaction\n\n"
-        "🌐 Visit our community: @Sakuramemecoincommunity",
-        reply_markup=ReplyKeyboardRemove(),
-        disable_web_page_preview=True
+    await update.message.reply_text(
+        f"🎉 Congratulations {user.mention_markdown_v2()}!\n\n"
+        "0.2 SOL is on its way to your wallet:\n"
+        f"`{wallet_address}`\n\n"
+        "⏳ Please allow 24-48 hours for the transaction to appear\n"
+        "🐦 Follow us for more updates and rewards!",
+        parse_mode='MarkdownV2',
+        reply_markup=ReplyKeyboardRemove()
     )
-    return CONFIRMATION
+    return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Cancel current conversation"""
+    """Cancel the conversation"""
     await update.message.reply_text(
-        "❌ Operation cancelled. Type /start to begin again.",
+        'Operation cancelled',
         reply_markup=ReplyKeyboardRemove()
     )
     return ConversationHandler.END
 
 def main() -> None:
     """Run the bot"""
-    # Create application
     application = Application.builder().token(BOT_TOKEN).build()
     
-    # Conversation handler
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
-            REQUEST_WALLET: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_wallet)],
-            CONFIRMATION: [CommandHandler('start', start)]
+            GET_WALLET: [
+                CallbackQueryHandler(request_wallet, pattern="^submit_wallet$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_wallet)
+            ]
         },
-        fallbacks=[CommandHandler('cancel', cancel)],
-        allow_reentry=True
+        fallbacks=[CommandHandler('cancel', cancel)]
     )
     
-    # Add handlers
     application.add_handler(conv_handler)
-    application.add_handler(CallbackQueryHandler(handle_done, pattern="^tasks_done$"))
     
-    # Start the bot
+    # Run the bot until Ctrl-C is pressed
     application.run_polling()
 
 if __name__ == '__main__':
