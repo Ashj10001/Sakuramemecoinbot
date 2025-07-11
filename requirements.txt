@@ -1,4 +1,2 @@
-python-telegram-bot==20.3
-pymongo[srv]
-tweepy
-python-dotenv
+python-telegram-bot==13.7
+pymongo[srv]==4.3.3
