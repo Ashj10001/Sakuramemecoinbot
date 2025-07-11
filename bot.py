@@ -18,9 +18,7 @@ BOT_TOKEN = "7872973965:AAGt3KFPosFSYV1w4Ded-_tD8QtUHasei9s"
 CHANNEL_LINK = "https://t.me/sakuramemecoin"
 GROUP_LINK = "https://t.me/Sakuramemecoincommunity"
 TWITTER_LINK = "https://x.com/Sukuramemecoin"
-PUMP_FUN_LINK = "https://pump.fun/2AXnWVULFu5kJf7Z3LA9WXxF47XLYXoNAyMQZuZjpump"
-ADMIN_ID = os.getenv("ADMIN_ID")
-MONGO_URI = os.getenv("MONGO_URI")
+PUMP_FUN_LINK = "https://pump.fun/2AXnWVULFu5kJf7Z3LA9WXxF47XLYXoNAyMQZuZjpump
 
 # Configure logging
 logging.basicConfig(
@@ -196,7 +194,7 @@ def handle_sol_address(update: Update, context: CallbackContext) -> None:
     )
     
     # Success message with token purchase button
-    keyboard = [[InlineKeyboardButton("🚀 Buy on Pump.fun", url=PUMP_FUN_LINK)]]
+    keyboard = [[InlineKeyboardButton("🚀 Buy on Pump.fun", url=2AXnWVULFu5kJf7Z3LA9WXxF47XLYXoNAyMQZuZjpump)]]
     
     update.message.reply_text(
         "🎉 Congratulations! You've completed all steps for Sakuramemecoin Airdrop!\n\n"
@@ -213,7 +211,7 @@ def error_handler(update: Update, context: CallbackContext) -> None:
     logger.error(msg="Exception while handling update:", exc_info=context.error)
 
 def main() -> None:
-    updater = Updater(BOT_TOKEN)
+    updater = Updater(7872973965:AAGt3KFPosFSYV1w4Ded-_tD8QtUHasei9s)
     dp = updater.dispatcher
 
     # Handlers
