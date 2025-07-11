@@ -24,7 +24,7 @@ TWITTER_LINK = "https://x.com/Sukuramemecoin"
 BUY_LINK = "https://pump.fun/coin/2AXnWVULFu5kJf7Z3LA9WXxF47XLYXoNAyMQZuZjpump"
 
 # Conversation states
-GET_WALLET = 0  # Typo fixed to GET_WALLET for consistency
+GET_WALLET = 0
 
 # Enable logging
 logging.basicConfig(
@@ -48,7 +48,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         [InlineKeyboardButton("✅ I Have Completed All Tasks", callback_data="submit_wallet")]
     ]
     
-    # Fixed Markdown escaping
     await update.message.reply_text(
         f"👋 Welcome {user.mention_markdown_v2()} to the $SAKURA Airdrop Bot\\!\n\n"
         "📋 To qualify for 0\\.2 SOL airdrop:\n"
@@ -79,7 +78,6 @@ async def receive_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     wallet_address = update.message.text
     user = update.effective_user
     
-    # Fixed Markdown escaping
     await update.message.reply_text(
         f"🎉 Congratulations {user.mention_markdown_v2()}!\n\n"
         "0\\.2 SOL is on its way to your wallet:\n"
@@ -101,11 +99,8 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 def main() -> None:
     """Run the bot with Render-compatible configuration"""
-    # Create application with workaround for Python 3.13 compatibility
+    # Create application without job queue initialization
     application = Application.builder().token(BOT_TOKEN).build()
-    
-    # Disable job queue to fix weak reference issue
-    application.job_queue = None
     
     # Add conversation handler
     conv_handler = ConversationHandler(
