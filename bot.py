@@ -1,5 +1,4 @@
 import logging
-import os
 from telegram import (
     Update,
     InlineKeyboardButton,
@@ -17,11 +16,14 @@ from telegram.ext import (
 )
 
 # Configuration
-BOT_TOKEN = os.getenv("BOT_TOKEN", "7872973965:AAGt3KFPosFSYV1w4Ded-_tD8QtUHasei9s")
+BOT_TOKEN = "7872973965:AAGt3KFPosFSYV1w4Ded-_tD8QtUHasei9s"  # Hardcoded token
 CHANNEL_LINK = "https://t.me/sakuramemecoin"
 GROUP_LINK = "https://t.me/Sakuramemecoincommunity"
 TWITTER_LINK = "https://x.com/Sukuramemecoin"
 BUY_LINK = "https://pump.fun/coin/2AXnWVULFu5kJf7Z3LA9WXxF47XLYXoNAyMQZuZjpump"
+
+# Render configuration - CHANGE THIS TO YOUR SERVICE NAME
+RENDER_SERVICE_NAME = "sakuramemecoin-bot"  # Without .onrender.com
 
 # Conversation states
 GET_WALLET = 0
@@ -97,19 +99,12 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
     return ConversationHandler.END
 
-async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Log errors"""
-    logger.error(f'Update {update} caused error: {context.error}')
-
 def main() -> None:
-    """Run the bot with Render-compatible configuration"""
+    """Run the bot with simplified configuration"""
     # Create application
     application = Application.builder().token(BOT_TOKEN).build()
     
-    # Add error handler
-    application.add_error_handler(error_handler)
-    
-    # Add conversation handler with per_message=True
+    # Add conversation handler with proper settings
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
@@ -119,32 +114,24 @@ def main() -> None:
             ]
         },
         fallbacks=[CommandHandler('cancel', cancel)],
-        per_message=True  # Critical fix for callback handling
+        per_chat=True,
+        per_user=True
     )
     
     application.add_handler(conv_handler)
     
-    # Render deployment configuration
-    if 'RENDER' in os.environ:
-        PORT = int(os.environ.get('PORT', 10000))
-        HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-        
-        if HOSTNAME:
-            logger.info(f"Starting webhook on https://{HOSTNAME}/{BOT_TOKEN}")
-            # Set up webhook for Render
-            application.run_webhook(
-                listen="0.0.0.0",
-                port=PORT,
-                url_path=BOT_TOKEN,
-                webhook_url=f"https://{sakuramemecoibot}/{BOT_TOKEN}",
-                drop_pending_updates=True
-            )
-        else:
-            logger.error("RENDER_EXTERNAL_HOSTNAME environment variable not set!")
-    else:
-        logger.info("Starting polling...")
-        # Local development with polling
-        application.run_polling(drop_pending_updates=True)
+    # Webhook configuration
+    PORT = 10000
+    WEBHOOK_URL = f"https://{RENDER_SERVICE_NAME}.onrender.com/{BOT_TOKEN}"
+    
+    logger.info(f"Starting webhook on: {WEBHOOK_URL}")
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        url_path=BOT_TOKEN,
+        webhook_url=WEBHOOK_URL,
+        drop_pending_updates=True
+    )
 
 if __name__ == '__main__':
     main()
