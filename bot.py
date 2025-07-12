@@ -136,7 +136,7 @@ def main() -> None:
                 listen="0.0.0.0",
                 port=PORT,
                 url_path=BOT_TOKEN,
-                webhook_url=f"https://{HOSTNAME}/{BOT_TOKEN}",
+                webhook_url=f"https://{sakuramemecoibot}/{BOT_TOKEN}",
                 drop_pending_updates=True
             )
         else:
