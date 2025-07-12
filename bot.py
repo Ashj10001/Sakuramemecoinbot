@@ -97,12 +97,19 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
     return ConversationHandler.END
 
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Log errors"""
+    logger.error(f'Update {update} caused error: {context.error}')
+
 def main() -> None:
     """Run the bot with Render-compatible configuration"""
-    # Create application without job queue initialization
+    # Create application
     application = Application.builder().token(BOT_TOKEN).build()
     
-    # Add conversation handler
+    # Add error handler
+    application.add_error_handler(error_handler)
+    
+    # Add conversation handler with per_message=True
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
@@ -111,7 +118,8 @@ def main() -> None:
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receive_wallet)
             ]
         },
-        fallbacks=[CommandHandler('cancel', cancel)]
+        fallbacks=[CommandHandler('cancel', cancel)],
+        per_message=True  # Critical fix for callback handling
     )
     
     application.add_handler(conv_handler)
@@ -119,18 +127,24 @@ def main() -> None:
     # Render deployment configuration
     if 'RENDER' in os.environ:
         PORT = int(os.environ.get('PORT', 10000))
-        APP_NAME = os.environ.get('APP_NAME')
+        HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
         
-        # Set up webhook for Render
-        application.run_webhook(
-            listen="0.0.0.0",
-            port=PORT,
-            url_path=BOT_TOKEN,
-            webhook_url=f"https://{APP_NAME}.onrender.com/{BOT_TOKEN}"
-        )
+        if HOSTNAME:
+            logger.info(f"Starting webhook on https://{HOSTNAME}/{BOT_TOKEN}")
+            # Set up webhook for Render
+            application.run_webhook(
+                listen="0.0.0.0",
+                port=PORT,
+                url_path=BOT_TOKEN,
+                webhook_url=f"https://{HOSTNAME}/{BOT_TOKEN}",
+                drop_pending_updates=True
+            )
+        else:
+            logger.error("RENDER_EXTERNAL_HOSTNAME environment variable not set!")
     else:
+        logger.info("Starting polling...")
         # Local development with polling
-        application.run_polling()
+        application.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
     main()
