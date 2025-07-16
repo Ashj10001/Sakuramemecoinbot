@@ -122,7 +122,7 @@ def main() -> None:
     
     # Webhook configuration
     PORT = 10000
-    WEBHOOK_URL = f"https://{SakuraMemecoinbot}.onrender.com/BOT_TOKEN}"
+    WEBHOOK_URL = f"https://{SakuraMemecoinbot}.onrender.com/{BOT_TOKEN}"
     logger.info(f"Starting webhook on: {WEBHOOK_URL}")
     application.run_webhook(
         listen="0.0.0.0",
