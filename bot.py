@@ -16,14 +16,14 @@ from telegram.ext import (
 )
 
 # Configuration
-BOT_TOKEN = "7872973965:AAGt3KFPosFSYV1w4Ded-_tD8QtUHasei9s"  # Hardcoded token
+BOT_TOKEN = "7872973965:AAGt3KFPosFSYV1w4Ded-_tD8QtUHasei9s"
 CHANNEL_LINK = "https://t.me/sakuramemecoin"
 GROUP_LINK = "https://t.me/Sakuramemecoincommunity"
 TWITTER_LINK = "https://x.com/Sukuramemecoin"
 BUY_LINK = "https://pump.fun/coin/2AXnWVULFu5kJf7Z3LA9WXxF47XLYXoNAyMQZuZjpump"
 
 # Render configuration - CHANGE THIS TO YOUR SERVICE NAME
-RENDER_SERVICE_NAME = "sakuramemecoinbot"  # Without .onrender.com
+RENDER_SERVICE_NAME = "sakuramemecoin-bot"  # Without .onrender.com
 
 # Conversation states
 GET_WALLET = 0
@@ -122,7 +122,8 @@ def main() -> None:
     
     # Webhook configuration
     PORT = 10000
-    WEBHOOK_URL = f"https://{SakuraMemecoinbot}.onrender.com/{BOT_TOKEN}"
+    WEBHOOK_URL = f"https://{RENDER_SERVICE_NAME}.onrender.com/{BOT_TOKEN}"
+    
     logger.info(f"Starting webhook on: {WEBHOOK_URL}")
     application.run_webhook(
         listen="0.0.0.0",
