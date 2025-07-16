@@ -1,12 +1,10 @@
-import logging
 import os
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import logging
+from telegram import Update
 from telegram.ext import (
     Application,
     CommandHandler,
-    CallbackContext,
-    CallbackQueryHandler,
-    ConversationHandler,
+    ContextTypes,
     MessageHandler,
     filters
 )
@@ -18,120 +16,126 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Configuration
-TOKEN = os.getenv("TELEGRAM_TOKEN", "7872973965:AAGt3KFPosFSYV1w4Ded-_tD8QtUHasei9s")
-PORT = int(os.getenv("PORT", 8443))  # Ensure PORT is integer
-WEBHOOK_URL = "https://sakuramemecoin-bot.onrender.com"  # Your Render URL
+# Get bot token from environment variable
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+if not TOKEN:
+    logger.error("TELEGRAM_BOT_TOKEN environment variable not set!")
+    exit(1)
 
-# Conversation states
-JOIN_GROUP, JOIN_CHANNEL, FOLLOW_TWITTER, BUY_TOKEN = range(4)
-
-# Airdrop links
-GROUP_LINK = "https://t.me/Sakuramemecoincommunity"
-CHANNEL_LINK = "https://t.me/sakuramemecoin"
-TWITTER_LINK = "https://x.com/Sukuramemecoin"
-PUMP_FUN_LINK = "https://pump.fun/2AXnWVULFu5kJf7Z3LA9WXxF47XLYXoNAyMQZuZjpump"
-
-# Start command
-async def start(update: Update, context: CallbackContext) -> int:
-    keyboard = [[InlineKeyboardButton("🌟 Start Airdrop 🌟", callback_data="start_airdrop")]]
+# ======================
+# Command Handlers
+# ======================
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send welcome message when /start is issued"""
+    user = update.effective_user
     await update.message.reply_text(
-        "🌸 *Welcome to Sakura Memecoin Airdrop!* 🌸\n\n"
-        "Complete these tasks to receive *0.02 SOL*:\n"
-        "1. Join our Telegram Group\n2. Join our Telegram Channel\n"
-        "3. Follow us on Twitter\n4. Buy Sakura Memecoin on Pump.fun",
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    return ConversationHandler.END
-
-# Airdrop flow handlers
-async def start_airdrop(update: Update, context: CallbackContext) -> int:
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(
-        f"🔹 *Task 1/4: Join Telegram Group*\n\n[Click here]({GROUP_LINK})",
-        parse_mode="Markdown",
-        disable_web_page_preview=True
+        f"🌸 Welcome to Sakura Meme Coin Bot, {user.first_name}!\n\n"
+        "I'm your gateway to the Sakura Meme Coin ecosystem.\n\n"
+        "Use /help to see available commands"
     )
-    keyboard = [[InlineKeyboardButton("✅ I've Joined", callback_data="joined_group")]]
-    await query.message.reply_text("Confirm:", reply_markup=InlineKeyboardMarkup(keyboard))
-    return JOIN_GROUP
 
-async def joined_group(update: Update, context: CallbackContext) -> int:
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(
-        f"🔹 *Task 2/4: Join Telegram Channel*\n\n[Click here]({CHANNEL_LINK})",
-        parse_mode="Markdown",
-        disable_web_page_preview=True
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show help menu"""
+    help_text = (
+        "🌺 Available Commands:\n\n"
+        "/start - Start the bot\n"
+        "/help - Show this help menu\n"
+        "/price - Check current token price\n"
+        "/buy - Purchase Sakura tokens\n"
+        "/wallet - View your wallet balance\n"
+        "/faq - Frequently asked questions\n\n"
+        "🚀 Join our community: @SakuraMemeCoin"
     )
-    keyboard = [[InlineKeyboardButton("✅ I've Joined", callback_data="joined_channel")]]
-    await query.message.reply_text("Confirm:", reply_markup=InlineKeyboardMarkup(keyboard))
-    return JOIN_CHANNEL
+    await update.message.reply_text(help_text)
 
-async def joined_channel(update: Update, context: CallbackContext) -> int:
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(
-        f"🔹 *Task 3/4: Follow Twitter*\n\n[Click here]({TWITTER_LINK})",
-        parse_mode="Markdown",
-        disable_web_page_preview=True
+async def price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show current token price"""
+    # In a real bot, you would fetch this from an API
+    price_data = (
+        "🌸 Sakura Meme Coin Price\n\n"
+        "💵 Current Price: $0.0012\n"
+        "📈 24h Change: +5.3%\n"
+        "💼 Market Cap: $1.2M\n\n"
+        "🔄 Update every 5 minutes"
     )
-    keyboard = [[InlineKeyboardButton("✅ I'm Following", callback_data="followed_twitter")]]
-    await query.message.reply_text("Confirm:", reply_markup=InlineKeyboardMarkup(keyboard))
-    return FOLLOW_TWITTER
+    await update.message.reply_text(price_data)
 
-async def followed_twitter(update: Update, context: CallbackContext) -> int:
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(
-        f"🔹 *Task 4/4: Buy Sakura Memecoin*\n\n[Buy on Pump.fun]({PUMP_FUN_LINK})",
-        parse_mode="Markdown",
-        disable_web_page_preview=True
+async def wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show user wallet balance"""
+    # In a real bot, you would fetch from database
+    wallet_info = (
+        "👛 Your Sakura Wallet\n\n"
+        "💰 Balance: 25,000 SAK\n"
+        "💵 USD Value: $30.00\n\n"
+        "🆔 Wallet Address: 0x742d...C8A9\n\n"
+        "📥 Deposit / 📤 Withdraw using /transfer"
     )
-    keyboard = [[InlineKeyboardButton("✅ I've Bought Tokens", callback_data="bought_token")]]
-    await query.message.reply_text("Confirm:", reply_markup=InlineKeyboardMarkup(keyboard))
-    return BUY_TOKEN
+    await update.message.reply_text(wallet_info)
 
-async def bought_token(update: Update, context: CallbackContext) -> int:
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(
-        "🎉 *Congratulations!* 🎉\n\n"
-        "You've completed all tasks!\n\n"
-        "Your reward of *0.02 SOL* is on its way!",
-        parse_mode="Markdown"
+async def faq(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show frequently asked questions"""
+    faq_text = (
+        "❓ Frequently Asked Questions\n\n"
+        "Q: What is Sakura Meme Coin?\n"
+        "A: A community-driven meme coin with real utility.\n\n"
+        "Q: How do I buy tokens?\n"
+        "A: Use /buy command or visit our website.\n\n"
+        "Q: Is there a staking program?\n"
+        "A: Yes! Staking launches Q3 2025.\n\n"
+        "🌐 Visit: sakuracoin.example.com"
     )
-    return ConversationHandler.END
+    await update.message.reply_text(faq_text)
 
-async def cancel(update: Update, context: CallbackContext) -> int:
-    await update.message.reply_text("Airdrop cancelled. Use /start to begin again.")
-    return ConversationHandler.END
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle non-command messages"""
+    text = update.message.text.lower()
+    
+    if any(keyword in text for keyword in ["hello", "hi", "hey"]):
+        await update.message.reply_text("🌸 Konnichiwa! How can I help?")
+    elif "price" in text:
+        await price(update, context)
+    elif "thank" in text:
+        await update.message.reply_text("You're welcome! 🌸")
+    else:
+        await update.message.reply_text(
+            "Sorry, I didn't understand that. Try /help for commands."
+        )
 
-def main():
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Log errors"""
+    logger.error(f"Update {update} caused error: {context.error}")
+    await update.message.reply_text(
+        "⚠️ An error occurred. Our team has been notified."
+    )
+
+# ======================
+# Bot Initialization
+# ======================
+def main() -> None:
+    """Start the bot"""
+    # Create Application
     application = Application.builder().token(TOKEN).build()
+
+    # Register command handlers
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("price", price))
+    application.add_handler(CommandHandler("wallet", wallet))
+    application.add_handler(CommandHandler("faq", faq))
     
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('start', start)],
-        states={
-            JOIN_GROUP: [CallbackQueryHandler(joined_group, pattern='^joined_group$')],
-            JOIN_CHANNEL: [CallbackQueryHandler(joined_channel, pattern='^joined_channel$')],
-            FOLLOW_TWITTER: [CallbackQueryHandler(followed_twitter, pattern='^followed_twitter$')],
-            BUY_TOKEN: [CallbackQueryHandler(bought_token, pattern='^bought_token$')],
-        },
-        fallbacks=[CommandHandler('cancel', cancel)],
-        per_message=True  # Fixes PTBUserWarning
-    )
+    # Register message handler
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    application.add_handler(conv_handler)
-    application.add_handler(CallbackQueryHandler(start_airdrop, pattern='^start_airdrop$'))
+    # Register error handler
+    application.add_error_handler(error_handler)
     
-    # Webhook configuration
-    logger.info("Starting bot...")
-    application.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        webhook_url=f"{WEBHOOK_URL}/{TOKEN}",
+    # Start polling
+    logger.info("🌸 Sakura Meme Coin Bot is running...")
+    application.run_polling(
+        poll_interval=3,
+        timeout=30,
+        drop_pending_updates=True,
+        allowed_updates=Update.ALL_TYPES
     )
 
 if __name__ == "__main__":
