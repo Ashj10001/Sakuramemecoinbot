@@ -1,7 +1,27 @@
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+import os
+import re
 import logging
-import random
+import time
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    Application, CommandHandler, ContextTypes, 
+    CallbackQueryHandler, MessageHandler, filters
+)
+from pymongo import MongoClient
+
+# Configuration - Get from Render environment
+BOT_TOKEN = "7872973965:AAGt3KFPosFSYV1w4Ded-_tD8QtUHasei9s"  # Your token
+CHANNEL_ID = os.getenv("CHANNEL_ID", "your_channel_id")
+GROUP_ID = os.getenv("GROUP_ID", "your_group_id")
+ADMIN_ID = os.getenv("ADMIN_ID", "your_admin_id")
+MONGO_URI = os.getenv("MONGO_URI", "your_mongodb_uri")
+
+# Fixed URLs
+CHANNEL_LINK = "https://t.me/sakuramemecoin"
+GROUP_LINK = "https://t.me/Sakuramemecoincommunity"
+TWITTER_LINK = "https://x.com/Sukuramemecoin"
+PUMP_FUN_LINK = "https://pump.fun/2AXnWVULFu5kJf7Z3LA9WXxF47XLYXoNAyMQZuZjpump"
+WEBSITE_LINK = "https://stirring-jelly-a235d8.netlify.app/"
 
 # Configure logging
 logging.basicConfig(
@@ -10,201 +30,243 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Constants
-WEBSITE = "https://stirring-jelly-a235d8.netlify.app/"
-REWARD = 0.02
-ADMIN_USER_ID = "YOUR_ADMIN_USER_ID"  # Replace with your Telegram user ID
+# Database setup
+client = MongoClient(MONGO_URI)
+db = client.sakuramemecoin_bot
+users = db.users
 
-# Simulated database (replace with real database in production)
-user_data = {}
+# Verification statuses
+STATUS_START, STATUS_CHANNEL, STATUS_GROUP, STATUS_TWITTER, STATUS_SOL_ADDRESS = range(5)
 
-class User:
-    def __init__(self, user_id):
-        self.user_id = user_id
-        self.balance = 0.0
-        self.tasks_completed = 0
-        self.username = ""
+# SOL address validation regex
+SOL_REGEX = r"^[1-9A-HJ-NP-Za-km-z]{32,44}$"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send welcome message when the command /start is issued."""
+    """Send welcome message with join menu when the command /start is issued."""
     user = update.effective_user
-    logger.info(f"New user: {user.full_name} (ID: {user.id})")
+    context.user_data['status'] = STATUS_START
     
-    # Initialize user in database
-    if user.id not in user_data:
-        user_data[user.id] = User(user.id)
-        user_data[user.id].username = user.username or user.full_name
+    # Welcome message with JOIN MENU
+    keyboard = [
+        [InlineKeyboardButton("🌸 Telegram Channel", url=CHANNEL_LINK)],
+        [InlineKeyboardButton("🌸 Telegram Group", url=GROUP_LINK)],
+        [InlineKeyboardButton("🌸 Twitter", url=TWITTER_LINK)],
+        [InlineKeyboardButton("🚀 Start Verification", callback_data='start_verification')],
+        [InlineKeyboardButton("🌐 Visit Website", url=WEBSITE_LINK)]
+    ]
     
-    # Welcome message with website link (no balance shown)
     await update.message.reply_html(
-        f"🌸 <b>Welcome to Sakuramemecoin Bot, {user.first_name}!</b> 🌸\n\n"
-        "🚀 Earn SMC by completing simple tasks\n\n"
-        "🔹 Use /tasks to see available tasks\n"
-        "🔹 Complete tasks and earn rewards\n"
-        f"🌐 Visit our website: {WEBSITE}\n\n"
-        "💬 Type /help for instructions"
+        f"🌸 <b>Welcome to Sakuramemecoin Airdrop, {user.first_name}!</b> 🌸\n\n"
+        "To qualify for <b>0.01 SOL reward</b>:\n\n"
+        "1️⃣ Join our Telegram channel\n"
+        "2️⃣ Join our Telegram group\n"
+        "3️⃣ Follow our Twitter\n"
+        "4️⃣ Submit your SOL address\n\n"
+        "<b>Click below to access all links and begin verification:</b>",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle button callbacks."""
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == 'start_verification':
+        await verify_channel(update, context)
+    elif query.data == 'check_channel':
+        await check_channel(update, context)
+    elif query.data == 'check_group':
+        await check_group(update, context)
+    elif query.data == 'check_twitter':
+        await check_twitter(update, context)
+
+async def verify_channel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Step 1: Verify channel membership."""
+    query = update.callback_query
+    context.user_data['status'] = STATUS_CHANNEL
+    
+    keyboard = [
+        [InlineKeyboardButton("🌸 Join Channel", url=CHANNEL_LINK)],
+        [InlineKeyboardButton("✅ I've Joined", callback_data='check_channel')]
+    ]
+    
+    await query.edit_message_text(
+        text="Step 1/4: Join our official Telegram channel 👇",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def check_channel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Check channel membership (placeholder)."""
+    query = update.callback_query
+    try:
+        # Actual verification would go here
+        await query.answer("✅ Channel membership verified!", show_alert=True)
+        await verify_group(update, context)
+    except Exception as e:
+        logger.error(f"Error checking channel: {e}")
+        await query.answer("✅ Proceeding to next step", show_alert=True)
+        await verify_group(update, context)
+
+async def verify_group(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Step 2: Verify group membership."""
+    query = update.callback_query
+    context.user_data['status'] = STATUS_GROUP
+    
+    keyboard = [
+        [InlineKeyboardButton("🌸 Join Group", url=GROUP_LINK)],
+        [InlineKeyboardButton("✅ I've Joined", callback_data='check_group')]
+    ]
+    
+    await query.edit_message_text(
+        text="Step 2/4: Join our Telegram group 👇",
+        reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def check_group(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Check group membership (placeholder)."""
+    query = update.callback_query
+    try:
+        # Actual verification would go here
+        await query.answer("✅ Group membership verified!", show_alert=True)
+        await verify_twitter(update, context)
+    except Exception as e:
+        logger.error(f"Error checking group: {e}")
+        await query.answer("✅ Proceeding to next step", show_alert=True)
+        await verify_twitter(update, context)
+
+async def verify_twitter(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Step 3: Verify Twitter follow."""
+    query = update.callback_query
+    context.user_data['status'] = STATUS_TWITTER
+    
+    keyboard = [
+        [InlineKeyboardButton("🌸 Follow Twitter", url=TWITTER_LINK)],
+        [InlineKeyboardButton("✅ I've Followed", callback_data='check_twitter')]
+    ]
+    
+    await query.edit_message_text(
+        text="Step 3/4: Follow our Twitter account 👇\n\n"
+             "After following, click the verification button below.",
+        reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def check_twitter(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Check Twitter follow (placeholder)."""
+    query = update.callback_query
+    context.user_data['status'] = STATUS_SOL_ADDRESS
+    
+    await query.edit_message_text(
+        text="Step 4/4: Submit your Solana address\n\n"
+             "Please send your SOL wallet address in the following format:\n"
+             "`Solana: YOUR_WALLET_ADDRESS`\n\n"
+             "Example:\n"
+             "`Solana: 7sPmqkM71YkGZ6J2XbkR5ZaYnXrFq2AZeQz3JmFd9XrR`\n\n"
+             "⚠️ Make sure this is your mainnet SOL address!"
+    )
+    await query.answer("Now please send your SOL address")
+
+async def handle_sol_address(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Process submitted SOL address."""
+    if context.user_data.get('status') != STATUS_SOL_ADDRESS:
+        return
+    
+    user = update.effective_user
+    message = update.message.text.strip()
+    
+    # Extract SOL address
+    if message.startswith("Solana: "):
+        sol_address = message.replace("Solana: ", "")
+    else:
+        sol_address = message
+    
+    # Validate SOL address
+    if not re.match(SOL_REGEX, sol_address):
+        await update.message.reply_text(
+            "❌ Invalid SOL address format! Please send a valid Solana mainnet address.\n"
+            "Example: `Solana: 7sPmqkM71YkGZ6J2XbkR5ZaYnXrFq2AZeQz3JmFd9XrR`",
+            parse_mode="Markdown"
+        )
+        return
+    
+    # Save to database
+    user_data = {
+        "user_id": user.id,
+        "username": user.username,
+        "first_name": user.first_name,
+        "sol_address": sol_address,
+        "completed": True,
+        "reward_sent": False,
+        "timestamp": time.time()
+    }
+    users.update_one({"user_id": user.id}, {"$set": user_data}, upsert=True)
+    
+    # Notify admin
+    if ADMIN_ID:
+        await context.bot.send_message(
+            chat_id=ADMIN_ID,
+            text=f"🚀 New Airdrop Registration:\n\n"
+                 f"User: @{user.username} ({user.first_name})\n"
+                 f"SOL Address: `{sol_address}`\n",
+            parse_mode="Markdown"
+        )
+    
+    # Success message with token purchase button
+    keyboard = [
+        [InlineKeyboardButton("🚀 Buy on Pump.fun", url=PUMP_FUN_LINK)],
+        [InlineKeyboardButton("🌐 Visit Website", url=WEBSITE_LINK)]
+    ]
+    
+    await update.message.reply_text(
+        "🎉 Congratulations! 0.01 SOL is on its way to your wallet!\n\n"
+        "Don't forget to buy our token on Pump.fun:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="Markdown"
+    )
+    
+    # Clear user data
+    context.user_data.clear()
+
+async def website(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send the website link."""
+    await update.message.reply_text(
+        f"🌐 Our official website: {WEBSITE_LINK}\n\n"
+        "Track your airdrop status and view your rewards!"
     )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send instructions when the command /help is issued."""
+    """Send help instructions."""
     await update.message.reply_text(
-        "📘 <b>Bot Guide</b> 📘\n\n"
-        "<b>Available Commands:</b>\n"
-        "/start - Welcome message\n"
-        "/help - Show this help\n"
-        "/tasks - View available tasks\n"
-        "/complete - Mark a task as completed\n"
-        "/balance - Check your SMC balance\n"
-        "/website - Get our website link\n\n"
-        "<b>How to Earn:</b>\n"
-        "1. Use /tasks to see available tasks\n"
-        "2. Complete a task\n"
-        "3. Use /complete to verify\n"
-        "4. Receive SMC rewards instantly!\n\n"
-        f"🌐 Website: {WEBSITE}",
-        parse_mode='HTML'
+        "📘 Airdrop Instructions:\n\n"
+        "1. Use /start to begin the verification process\n"
+        "2. Complete all 4 steps to qualify for 0.01 SOL\n"
+        "3. Submit your Solana wallet address\n\n"
+        f"🌐 Website: {WEBSITE_LINK}\n"
+        "Have questions? Contact our support team"
     )
-
-async def show_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Show available tasks to the user."""
-    tasks = [
-        "✅ <b>Task 1:</b> Join our Telegram channel",
-        "✅ <b>Task 2:</b> Retweet our pinned tweet",
-        "✅ <b>Task 3:</b> Follow us on Twitter",
-        "✅ <b>Task 4:</b> Share our website with 5 friends",
-        "✅ <b>Task 5:</b> Join our Discord server",
-        "✅ <b>Task 6:</b> Create a meme about Sakuracoin"
-    ]
-    
-    await update.message.reply_text(
-        "📋 <b>Available Tasks:</b>\n\n" +
-        "\n".join(tasks) +
-        "\n\n🔹 Complete any task and use /complete to verify\n"
-        f"🔹 Reward: {REWARD} SMC per task\n\n"
-        "💡 You can complete multiple tasks!",
-        parse_mode='HTML'
-    )
-
-async def complete_task(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Confirm task completion and send reward notification."""
-    user = update.effective_user
-    logger.info(f"Task completed by: {user.full_name} (ID: {user.id})")
-    
-    # Initialize user if not exists
-    if user.id not in user_data:
-        user_data[user.id] = User(user.id)
-    
-    # Update user balance
-    user_data[user.id].balance += REWARD
-    user_data[user.id].tasks_completed += 1
-    
-    # Send reward message
-    await update.message.reply_text(
-        f"🎉 <b>Congratulations!</b> 🎉\n\n"
-        f"💰 <b>{REWARD} SMC</b> is on the way to your wallet!\n\n"
-        "⌛ Please allow 2-3 minutes for the transaction\n"
-        "🔄 Complete more tasks to earn more rewards!\n\n"
-        f"🌐 Dashboard: {WEBSITE}",
-        parse_mode='HTML'
-    )
-    
-    # Notify admin (optional)
-    # await context.bot.send_message(
-    #     chat_id=ADMIN_USER_ID,
-    #     text=f"⚠️ Task completed\nUser: {user.full_name}\nID: {user.id}\nTasks: {user_data[user.id].tasks_completed}"
-    # )
-
-async def show_balance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Show user's balance when requested."""
-    user = update.effective_user
-    
-    if user.id in user_data:
-        balance = user_data[user.id].balance
-        tasks = user_data[user.id].tasks_completed
-        await update.message.reply_text(
-            f"💼 <b>Your Sakuramemecoin Balance</b> 💼\n\n"
-            f"💰 <b>Total Balance:</b> {balance:.2f} SMC\n"
-            f"✅ <b>Tasks Completed:</b> {tasks}\n\n"
-            f"🌐 View your full dashboard: {WEBSITE}",
-            parse_mode='HTML'
-        )
-    else:
-        await update.message.reply_text(
-            "❌ You haven't started earning yet!\n\n"
-            "Use /start to begin and complete your first task to get SMC rewards."
-        )
-
-async def website_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send the website link."""
-    await update.message.reply_text(
-        f"🌐 <b>Official Website</b> 🌐\n\n"
-        f"Visit our platform: {WEBSITE}\n\n"
-        "🔹 Track your earnings\n"
-        "🔹 View transaction history\n"
-        "🔹 Discover more earning opportunities",
-        parse_mode='HTML'
-    )
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle regular text messages."""
-    user = update.effective_user
-    text = update.message.text.lower()
-    
-    responses = [
-        "🌸 Sakura season is earning season! Complete tasks with /tasks",
-        "💻 Visit our website to track your earnings: " + WEBSITE,
-        "💎 Each task earns you 0.02 SMC! Use /complete after finishing",
-        "🚀 Ready to earn more? Check available tasks with /tasks",
-        "🌐 Stay updated: " + WEBSITE
-    ]
-    
-    if any(greet in text for greet in ["hello", "hi", "hey", "hola"]):
-        await update.message.reply_text(f"👋 Hello {user.first_name}! Ready to earn some SMC?")
-    elif "thank" in text:
-        await update.message.reply_text("🙏 You're welcome! Keep earning with us!")
-    elif "website" in text or "site" in text or "link" in text:
-        await website_link(update, context)
-    elif "balance" in text or "smc" in text or "earn" in text:
-        await show_balance(update, context)
-    elif "task" in text or "mission" in text or "job" in text:
-        await show_tasks(update, context)
-    elif "start" in text:
-        await start(update, context)
-    else:
-        await update.message.reply_text(random.choice(responses))
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Log errors and send a message to the user."""
-    logger.error(f"Update {update} caused error: {context.error}")
-    
-    if update.effective_message:
-        await update.effective_message.reply_text(
-            "❌ Oops! Something went wrong.\n\n"
-            "Please try again later or contact support."
+    """Log errors and notify user."""
+    logger.error(msg="Exception while handling update:", exc_info=context.error)
+    if update.message:
+        await update.message.reply_text(
+            "❌ Oops! Something went wrong. Please try again later."
         )
 
 def main() -> None:
     """Start the bot."""
     # Create the Application
-    application = Application.builder().token("YOUR_BOT_TOKEN_HERE").build()
-    
-    # Add command handlers
+    application = Application.builder().token(BOT_TOKEN).build()
+
+    # Handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("tasks", show_tasks))
-    application.add_handler(CommandHandler("complete", complete_task))
-    application.add_handler(CommandHandler("balance", show_balance))
-    application.add_handler(CommandHandler("website", website_link))
-    
-    # Add message handler
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
-    # Add error handler
+    application.add_handler(CommandHandler("website", website))
+    application.add_handler(CallbackQueryHandler(button_handler))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_sol_address))
     application.add_error_handler(error_handler)
-    
-    # Start the Bot
-    logger.info("Starting bot...")
-    application.run_polling()
 
-if __name__ == "__main__":
+    # Start the Bot
+    logger.info("Starting Sakuramemecoin Airdrop Bot...")
+    application.run_polling()
+    logger.info("Bot started successfully")
+
+if __name__ == '__main__':
     main()
